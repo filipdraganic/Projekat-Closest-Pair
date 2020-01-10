@@ -5,16 +5,22 @@ import matplotlib.axes as axes
 import numpy as np
 from pynput import keyboard
 import sys
+from pynput.keyboard import Key, Listener
+import config
 
-x = np.random.random(20)
-y = np.random.random(20)
+# x = np.random.random(20)
+# y = np.random.random(20)
 broj = 0
 
+x = []
+y = []
 listaTacakaX = []
 listaTacakaY = []
 
 leveTacke = []
 desneTacke = []
+
+config.pokrenuto = False
 
 
 class _PobednickeTacke:
@@ -36,28 +42,23 @@ class Tacka:
         return self.x, self.y
 
 
-def on_press(key):
-    if key == keyboard.Key.space:
-        print("PRITISNUT SPEEEEEJS")
-        global broj
-        # plotovanje.scatter(x, y)
-
-        # plotovanje.plot([x[1],x[1+1]],[y[1],y[1+1]],"ro-")
-        broj += 1
-        print(broj)
-
-
-def iscrtaj(tacka1, tacka2, x=1 / 2):
+def iscrtaj(tacka1, tacka2, xLinija=1 / 2,tackeUObziru = None):
     plotovanje.clf()
     xlimit = plotovanje.xlim(0, 1)
     ylimit = plotovanje.ylim(0, 1)
-    plotovanje.axvline(x=x, color="black")
+    plotovanje.axvline(x=xLinija, color="black")
+    global x, y
 
-    for tacka in listaTacakaY:
-        if tacka.x < 1 / 2:
-            plotovanje.scatter(tacka.x, tacka.y, color="blue")
+    for xCord, yCord in zip(x, y):
+        if xCord < 1 / 2:
+            plotovanje.scatter(xCord, yCord, color="blue")
         else:
-            plotovanje.scatter(tacka.x, tacka.y, color="red")
+            plotovanje.scatter(xCord, yCord, color="red")
+
+    if tackeUObziru  is not None:
+        for xCord, yCord in tackeUObziru:
+            plotovanje.scatter()
+
     plotovanje.plot([tacka1.x, tacka2.x],
                     [tacka1.y, tacka2.y], "yo-")
     plotovanje.pause(0.01)
@@ -94,8 +95,7 @@ def najbliziStrip(strip, n, d):
         if j < n and math.fabs(strip[j].x - strip[i].x) < minimum:
             for j in range(n):
                 minimum = izracunajDistancu(strip[i], strip[j])
-
-                iscrtaj(strip[i], strip[j])
+                iscrtaj(strip, strip[i], strip[j])
 
                 if minimum < pobednickeTacke.razdaljina and minimum != 0.0:
                     pobednickeTacke.tacka1 = strip[i]
@@ -120,14 +120,15 @@ def resiNajbliziPar(xTacke, yTacke, n):
     desniiterator = 0
 
     for i in range(n):
-        if yTacke[i].x <= srednjaTacka.x:                                                                               #Svrstavanje tacaka u odnosu na to da li su levo ili desno od vertikalne linije
-            tackeLevo.append(yTacke[i])                                                                                 #
+        if yTacke[i].x <= srednjaTacka.x:                         # Svrstavanje tacaka u odnosu na to da li su levo ili desno od vertikalne linije
+            tackeLevo.append(yTacke[i])  #
             leviiterator += 1
         else:
             tackeDesno.append(yTacke[i])
             desniiterator += 1
 
-    minimalnaDesno = resiNajbliziPar(xTacke[mid:], tackeDesno, desniiterator)                                           #Rekurzivno se pozivaju za levo i desno od vertikalne linije
+    minimalnaDesno = resiNajbliziPar(xTacke[mid:], tackeDesno,
+                                     desniiterator)                         # Rekurzivno se pozivaju za levo i desno od vertikalne linije
     minimalnaLevo = resiNajbliziPar(xTacke, tackeLevo, leviiterator)
 
     minimalnaRazdaljina = 0
@@ -142,10 +143,10 @@ def resiNajbliziPar(xTacke, yTacke, n):
 
     j = 0
     for i in range(len(yTacke)):
-        if math.fabs(yTacke[i].x - srednjaTacka.x) < minimalnaRazdaljina:                                               #Proverava se razdaljina po x izmedju svake tacke i srednje tacke
-            tackeBlizuSredine.append(yTacke[i])                                                                         #Ako je manja od minimalne razdaljine uzima se da se proveri da li
-            j += 1                                                                                                      #je manja razdaljina izmedju tih tacaka koje su na suprotnim stranama
-    sredisnjaDistanca = 1000000                                                                                         #vertikalne linije
+        if math.fabs(yTacke[i].x - srednjaTacka.x) < minimalnaRazdaljina:   # Proverava se razdaljina po x izmedju svake tacke i srednje tacke
+            tackeBlizuSredine.append(yTacke[i])                             # Ako je manja od minimalne razdaljine uzima se da se proveri da li
+            j += 1                                                          # je manja razdaljina izmedju tih tacaka koje su na suprotnim stranama
+    sredisnjaDistanca = 1000000  # vertikalne linije
     if j > 1:
         sredisnjaDistanca = najbliziStrip(tackeBlizuSredine, j, minimalnaRazdaljina)
     print("Strip = " + str(sredisnjaDistanca))
@@ -155,34 +156,27 @@ def resiNajbliziPar(xTacke, yTacke, n):
     return minimalnaRazdaljina
 
 
-if __name__ == '__main__':
+def prvoPozvati():
+    pokrenuto = True
     minDesno = 1000000
     minLevo = 1000000
     minSredina = 100000
 
     minimalneTacke = np.empty(shape=(2,), dtype=Tacka)
+    listaTupleTacaka = []
 
-    # boing = Avion(imeAviona="boing",rasponKrila= 52, brojPutnika=1000)
-    # boing.aprint()
-    # boing.getimeAviona()
-    niz = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    # plotovanje.plot([x[5],x[6]],[y[5],y[6]],"ro-")
-    listener = keyboard.Listener(
-        on_press=on_press
-    )
-    listener.start()
+    for xCord, yCord in zip(x, y):
+        listaTupleTacaka.append((xCord, yCord))
 
-    sortiranX = np.sort(x, kind='mergesort')
+    listaTupleTacaka.sort(key=lambda tup: tup[1])
 
-    sortiranY = np.sort(y, kind='mergesort')
+    for tacka in listaTupleTacaka:
+        listaTacakaY.append(Tacka(tacka[0], tacka[1]))
 
-    print(x)
+    listaTupleTacaka.sort(key=lambda tup: tup[0])
 
-    for xCord, yCord in zip(sortiranX, y):
-        listaTacakaX.append(Tacka(xCord, yCord))
-
-    for xCord, yCord in zip(x, sortiranY):
-        listaTacakaY.append(Tacka(xCord, yCord))
+    for tacka in listaTupleTacaka:
+        listaTacakaX.append(Tacka(tacka[0], tacka[1]))
 
     razdaljina = resiNajbliziPar(listaTacakaX, listaTacakaY, len(listaTacakaY))
 
@@ -191,118 +185,79 @@ if __name__ == '__main__':
     iscrtaj(pobednickeTacke.tacka1, pobednickeTacke.tacka2)
     plotovanje.plot([pobednickeTacke.tacka1.x, pobednickeTacke.tacka2.x],
                     [pobednickeTacke.tacka1.y, pobednickeTacke.tacka2.y], "mo-")
+    plotovanje.show()
 
-    # leviiterator = 0
-    # desniiterator = 0
-    # for tacka in listaTacaka:
-    #     if tacka.x < 1 / 2:
-    #         leveTacke.append(tacka)
-    #     else:
-    #         desneTacke.append(tacka)
-    # flag = 0
-    # while broj < len(leveTacke) + 2 or broj < len(desneTacke) + 2:
-    #     plotovanje.clf()
-    #     plotovanje.axvline(x=1 / 2, color="black")
-    #
-    #     xlimit = plotovanje.xlim(0, 1)
-    #     ylimit = plotovanje.ylim(0, 1)
-    #
-    #     for tacka in listaTacaka:
-    #         if tacka.x < 1 / 2:
-    #             plotovanje.scatter(tacka.x, tacka.y, color="blue")
-    #         else:
-    #             plotovanje.scatter(tacka.x, tacka.y, color="red")
-    #
-    #     if flag == 3:
-    #         plotovanje.plot([minimalneTacke[0].x, minimalneTacke[1].x],
-    #                         [minimalneTacke[0].y, minimalneTacke[1].y], "mo-")
-    #         plotovanje.pause(20)
-    #
-    #     if flag == 2:
-    #         minSredina = izracunajDistancu(desneTacke[0], leveTacke[len(leveTacke) - 1])
-    #         plotovanje.plot([desneTacke[0].x, leveTacke[len(leveTacke) - 1].x],
-    #                         [desneTacke[0].y, leveTacke[len(leveTacke) - 1].y], "yo-")
-    #
-    #         print("Uzeta sredina u obzir")
-    #
-    #         if minSredina < minLevo and minSredina < minDesno:
-    #             print("minLevo = " + minLevo)
-    #             print("minDesno = " + minDesno)
-    #             print("minSredina = " + minSredina)
-    #
-    #
-    #             minimalneTacke[0] = desneTacke[0]
-    #             minimalneTacke[1] = leveTacke[len(leveTacke) - 1]
-    #
-    #
-    #
-    #         flag += 1
-    #
-    #     if leviiterator < len(leveTacke) - 1:
-    #         plotovanje.plot([leveTacke[leviiterator].x, leveTacke[leviiterator + 1].x],
-    #                         [leveTacke[leviiterator].y, leveTacke[leviiterator + 1].y], "yo-")
-    #         distanca = izracunajDistancu(leveTacke[leviiterator], leveTacke[leviiterator + 1])
-    #
-    #         if distanca < minLevo:
-    #             minLevo = distanca
-    #             if minLevo < minDesno:
-    #                 minimalneTacke[0] = leveTacke[leviiterator]
-    #                 minimalneTacke[1] = leveTacke[leviiterator+1]
-    #
-    #
-    #         leviiterator += 1
-    #     elif leviiterator == len(leveTacke) - 1:
-    #         plotovanje.plot([leveTacke[leviiterator].x, leveTacke[0].x],
-    #                         [leveTacke[leviiterator].y, leveTacke[0].y], "yo-")
-    #         distanca = izracunajDistancu(leveTacke[leviiterator], leveTacke[0])
-    #
-    #         if distanca < minLevo:
-    #             minLevo = distanca
-    #             if minLevo < minDesno:
-    #                 minimalneTacke[0] = leveTacke[leviiterator]
-    #                 minimalneTacke[1] = leveTacke[0]
-    #
-    #
-    #
-    #         print("BBB")
-    #         leviiterator += 1
-    #         flag += 1
-    #
-    #     if desniiterator < len(desneTacke) - 1:
-    #         plotovanje.plot([desneTacke[desniiterator].x, desneTacke[desniiterator + 1].x],
-    #                         [desneTacke[desniiterator].y, desneTacke[desniiterator + 1].y], "yo-")
-    #         distanca = izracunajDistancu(desneTacke[desniiterator], desneTacke[desniiterator + 1])
-    #
-    #         if distanca < minDesno:
-    #             minDesno = distanca
-    #             if minDesno < minLevo:
-    #                 minimalneTacke[0] = desneTacke[desniiterator]
-    #                 minimalneTacke[1] = desneTacke[desniiterator+1]
-    #
-    #         desniiterator += 1
-    #
-    #     elif desniiterator == len(desneTacke) - 1:
-    #         plotovanje.plot([desneTacke[desniiterator].x, desneTacke[0].x],
-    #                         [desneTacke[desniiterator].y, desneTacke[0].y], "yo-")
-    #         distanca = izracunajDistancu(desneTacke[desniiterator], desneTacke[0])
-    #
-    #         if distanca < minDesno:
-    #             minDesno = distanca
-    #             if minDesno < minLevo:
-    #                 minimalneTacke[0] = desneTacke[desniiterator]
-    #                 minimalneTacke[1] = desneTacke[0]
-    #
-    #         print("AAA")
-    #         desniiterator += 1
-    #         flag += 1
-    #
-    #
-    #     plotovanje.ylabel("Brojevi na Y osi")
-    #     plotovanje.xlabel("Brojevi na X osi")
-    #
-    #     plotovanje.show()
-    #     plotovanje.pause(1)
-    #     broj += 1
 
-    # plotovanje.close('all')
-    # sys.exit()
+
+pokrenuti = 1
+if __name__ == '__main__':
+    fig = plotovanje.figure()
+    ax = fig.add_subplot(111)
+    xlimit = plotovanje.xlim(0, 1)
+    ylimit = plotovanje.ylim(0, 1)
+
+
+    def on_press(key):
+        print('{0} pressed'.format(
+            key))
+
+        if key == Key.esc:
+            sys.exit()
+
+
+    def onclick(event):
+        print('button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+              (event.button, event.x, event.y, event.xdata, event.ydata))
+        # plotovanje.plot(event.xdata, event.ydata, ',')
+        plotovanje.scatter(event.xdata, event.ydata, color='blue')
+        x.append(event.xdata)
+        y.append(event.ydata)
+        fig.canvas.draw()
+
+
+    def keyclick(event):
+        global x, y
+
+        print(event.key)
+        if event.key == "r":
+            global pokrenuti
+            if pokrenuti == 1:
+                pokrenuti += 1
+
+                prvoPozvati()
+        if event.key == "enter":
+            f = open("fajlSaTackama.txt", "w")
+
+            f.write(str(x))
+            f.write("\n")
+            f.write(str(y))
+            f.close()
+        if event.key == "escape":
+            sys.exit()
+
+        if event.key == "t":
+            f = open("fajlSaTackama.txt", "r")
+            xstring = f.readline()
+            ystring = f.readline()
+            ystring = ystring[1:-1].split(", ")
+            xstring = xstring[1:-2].split(", ")
+
+            for i in range(len(xstring)):
+                t = float(xstring[i])
+                x.append(t)
+                t = float(ystring[i])
+                y.append(t)
+
+            print(x)
+            print("AAAAAAA")
+            print(y)
+            plotovanje.scatter(x, y, color="blue")
+            fig.canvas.draw()
+
+            f.close()
+
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    cidkeyboard = fig.canvas.mpl_connect('key_press_event', keyclick)
+
+    plotovanje.show()
