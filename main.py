@@ -22,6 +22,13 @@ desneTacke = []
 
 config.pokrenuto = False
 
+globalnibrojac = 0
+
+levox = 0
+desnox = 1
+sredina = 1 / 2
+gorey = 1
+doley = 1
 
 class _PobednickeTacke:
     def __init__(self, tacka1, tacka2, razdaljina):
@@ -34,18 +41,27 @@ pobednickeTacke = _PobednickeTacke(None, None, 1000000)
 
 
 class Tacka:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def __init__(self, xKoordinata, yKoordinata):
+        self.x = xKoordinata
+        self.y = yKoordinata
 
     def getKordinate(self):
         return self.x, self.y
 
 
-def iscrtaj(tacka1, tacka2, xLinija=1 / 2,tackeUObziru = None):
+def iscrtaj(tacka1, tacka2, xLinija=sredina, tackeUObziru=None):
     plotovanje.clf()
-    xlimit = plotovanje.xlim(0, 1)
-    ylimit = plotovanje.ylim(0, 1)
+    global desnox, gorey, globalnibrojac
+    if desnox > gorey:
+        limit = desnox
+    else:
+        limit = gorey
+    if tacka1 == tacka2: return
+
+    globalnibrojac += 1
+
+    xlimit = plotovanje.xlim(0, limit+0.05)
+    ylimit = plotovanje.ylim(0, limit+0.05)
     plotovanje.axvline(x=xLinija, color="black")
     global x, y
 
@@ -55,17 +71,13 @@ def iscrtaj(tacka1, tacka2, xLinija=1 / 2,tackeUObziru = None):
         else:
             plotovanje.scatter(xCord, yCord, color="red")
 
-    if tackeUObziru  is not None:
-        for xCord, yCord in tackeUObziru:
-            plotovanje.scatter()
-
     plotovanje.plot([tacka1.x, tacka2.x],
                     [tacka1.y, tacka2.y], "yo-")
     plotovanje.pause(0.01)
 
 
 def izracunajDistancu(tacka1, tacka2):
-    return math.fabs(math.sqrt(pow((tacka1.x - tacka2.x), 2) + pow((tacka1.y - tacka2.y), 2)))
+    return math.sqrt(pow((tacka1.x - tacka2.x), 2) + pow((tacka1.y - tacka2.y), 2))
 
 
 def bruteForce(xTacke, n):
@@ -75,7 +87,7 @@ def bruteForce(xTacke, n):
 
             distancaTacaka = izracunajDistancu(xTacke[i], xTacke[j])
 
-            iscrtaj(xTacke[i], xTacke[j], (xTacke[i].x + xTacke[j].x) / 2)
+            iscrtaj(xTacke[i], xTacke[j])
 
             if distancaTacaka < minimalnaRazdaljina:
                 minimalnaRazdaljina = distancaTacaka
@@ -91,27 +103,35 @@ def bruteForce(xTacke, n):
 def najbliziStrip(strip, n, d):
     minimum = d
     for i in range(n):
-        j = i + 1
-        if j < n and math.fabs(strip[j].x - strip[i].x) < minimum:
-            for j in range(n):
-                minimum = izracunajDistancu(strip[i], strip[j])
-                iscrtaj(strip, strip[i], strip[j])
 
-                if minimum < pobednickeTacke.razdaljina and minimum != 0.0:
-                    pobednickeTacke.tacka1 = strip[i]
-                    pobednickeTacke.tacka2 = strip[j]
-                    pobednickeTacke.razdaljina = minimum
+            for j in range(i+1, n):
+                if j < n and (strip[j].y - strip[i].y) < minimum:
+                    tempminimum = izracunajDistancu(strip[i], strip[j])
+                    iscrtaj(strip[i], strip[j])
+
+                    if tempminimum < minimum:
+                        minimum = tempminimum
+
+                    if minimum < pobednickeTacke.razdaljina and minimum != 0.0:
+                        pobednickeTacke.tacka1 = strip[i]
+                        pobednickeTacke.tacka2 = strip[j]
+                        pobednickeTacke.razdaljina = minimum
     return minimum
 
 
-def resiNajbliziPar(xTacke, yTacke, n):
+def resiNajbliziPar(xTacke, yTacke,  n):
     if 3 >= n > 1:
-        return bruteForce(xTacke, n)
+        return bruteForce(yTacke, n)
+    if n == 1:
+        return 10000
 
     print(n)
 
     mid = round(n / 2)
     srednjaTacka = xTacke[mid]
+
+    global sredina
+    sredina = xTacke[mid].x
 
     tackeLevo = []  # Tacke levo od vertikalne linije
     tackeDesno = []  # Tacke desno do vertikalne linije
@@ -120,36 +140,30 @@ def resiNajbliziPar(xTacke, yTacke, n):
     desniiterator = 0
 
     for i in range(n):
-        if yTacke[i].x <= srednjaTacka.x:                         # Svrstavanje tacaka u odnosu na to da li su levo ili desno od vertikalne linije
-            tackeLevo.append(yTacke[i])  #
-            leviiterator += 1
+        if yTacke[i].x <= srednjaTacka.x:
+            tackeLevo.append(yTacke[i])
+            #leviiterator += 1
         else:
             tackeDesno.append(yTacke[i])
-            desniiterator += 1
+            #desniiterator += 1
 
-    minimalnaDesno = resiNajbliziPar(xTacke[mid:], tackeDesno,
-                                     desniiterator)                         # Rekurzivno se pozivaju za levo i desno od vertikalne linije
-    minimalnaLevo = resiNajbliziPar(xTacke, tackeLevo, leviiterator)
+    minimalnaDesno = resiNajbliziPar(xTacke[mid:], tackeDesno, len(tackeDesno))  # Rekurzivno se pozivaju za levo i desno od vertikalne linije
+    minimalnaLevo = resiNajbliziPar(xTacke, tackeLevo, len(tackeLevo))
 
-    minimalnaRazdaljina = 0
-
-    if minimalnaLevo < minimalnaDesno:
-        minimalnaRazdaljina = minimalnaLevo
-
-    else:
-        minimalnaRazdaljina = minimalnaDesno
+    minimalnaRazdaljina = min(minimalnaDesno, minimalnaLevo)
 
     tackeBlizuSredine = []
 
     j = 0
     for i in range(len(yTacke)):
-        if math.fabs(yTacke[i].x - srednjaTacka.x) < minimalnaRazdaljina:   # Proverava se razdaljina po x izmedju svake tacke i srednje tacke
-            tackeBlizuSredine.append(yTacke[i])                             # Ako je manja od minimalne razdaljine uzima se da se proveri da li
-            j += 1                                                          # je manja razdaljina izmedju tih tacaka koje su na suprotnim stranama
+        if math.fabs(yTacke[i].x - srednjaTacka.x) < minimalnaRazdaljina:  # Proverava se razdaljina po x izmedju svake tacke i srednje tacke
+            tackeBlizuSredine.append(yTacke[i])  # Ako je manja od minimalne razdaljine uzima se da se proveri da li
+            j += 1  # je manja razdaljina izmedju tih tacaka koje su na suprotnim stranama
     sredisnjaDistanca = 1000000  # vertikalne linije
     if j > 1:
-        sredisnjaDistanca = najbliziStrip(tackeBlizuSredine, j, minimalnaRazdaljina)
+        sredisnjaDistanca = najbliziStrip(tackeBlizuSredine, len(tackeBlizuSredine), minimalnaRazdaljina)
     print("Strip = " + str(sredisnjaDistanca))
+
     if minimalnaRazdaljina > sredisnjaDistanca:
         return sredisnjaDistanca
 
@@ -168,17 +182,40 @@ def prvoPozvati():
     for xCord, yCord in zip(x, y):
         listaTupleTacaka.append((xCord, yCord))
 
+
     listaTupleTacaka.sort(key=lambda tup: tup[1])
+
+    print(listaTupleTacaka)
 
     for tacka in listaTupleTacaka:
         listaTacakaY.append(Tacka(tacka[0], tacka[1]))
 
     listaTupleTacaka.sort(key=lambda tup: tup[0])
 
+    print(listaTupleTacaka)
+
     for tacka in listaTupleTacaka:
         listaTacakaX.append(Tacka(tacka[0], tacka[1]))
 
-    razdaljina = resiNajbliziPar(listaTacakaX, listaTacakaY, len(listaTacakaY))
+    global levox, desnox, sredina, gorey, doley
+
+    desnox = listaTacakaX[len(listaTacakaX) - 1].x
+    gorey = listaTacakaY[len(listaTacakaY) - 1].y
+    levox = listaTacakaX[0].x
+    doley = listaTacakaY[0].y
+    broj = round(len(listaTacakaX)/2)
+    sredina = listaTacakaX[broj].x
+
+    #
+    # print("LISTA TACAKA OD NULA = ")
+    # print(listaTacakaX[0].x)
+
+    razdaljina = resiNajbliziPar(listaTacakaX, listaTacakaY, len(listaTacakaX))
+
+    # print(desnox)
+    # print(levox)
+    # print(sredina)
+    print("UKUPAN BROJ ISCRTAVANJA  = " + str(globalnibrojac))
 
     print("razdaljina = " + str(razdaljina))
     print("pobednickeTacke.razdaljina = " + str(pobednickeTacke.razdaljina))
@@ -186,6 +223,7 @@ def prvoPozvati():
     plotovanje.plot([pobednickeTacke.tacka1.x, pobednickeTacke.tacka2.x],
                     [pobednickeTacke.tacka1.y, pobednickeTacke.tacka2.y], "mo-")
     plotovanje.show()
+
 
 
 
